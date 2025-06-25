@@ -8,16 +8,14 @@ import {
   createHotel,
   deleteHotel,
   updateHotel,
- 
 } from "../controller/hotelCon.js";
 
 router.route("/hotelregister").post(hotelOwnerRegister);
 router.route("/hotellogin").post(hotelOwnerLogin);
-router.route("/addhotel").post(authentication,createHotel);
-router.route("/:id/ud").delete(deleteHotel).put(authentication,updateHotel);
-
-
-
-
+router.route("/addhotel").post(authentication, createHotel);
+router
+  .route("/:id/ud")
+  .delete(authentication, deleteHotel)
+  .put(authentication, updateHotel);
 
 export default router;

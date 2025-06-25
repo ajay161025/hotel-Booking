@@ -9,14 +9,9 @@ import {
 } from "../controller/adminCon.js";
 import { updateHotel } from "../controller/hotelCon.js";
 
-
-
-router.route("/signup").post(adminSingup);
 router.route("/signin").post(adminSignin);
-router.route("/:id/adminupdate").put(updateHotel);
-router.route("/:id/verify").put(adminVerify);
-router.route("/verified").get(notVerified);
-
-
+router.route("/:id/adminupdate").put(authentication, updateHotel);
+router.route("/:id/verify").put(authentication, adminVerify);
+router.route("/verified").get(authentication, notVerified);
 
 export default router;

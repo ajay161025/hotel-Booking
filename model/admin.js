@@ -23,10 +23,10 @@ const adminSchema = new mongoose.Schema(
       max: 25,
     },
 
-    // isVerified: {
-    //   type: Boolean,
-    //   default: false,
-    // },
+    role: {
+      type: String,
+      default: "admin",
+    },
   },
   { timestamps: true }
 );

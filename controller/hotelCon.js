@@ -17,17 +17,24 @@ export const authentication = catchAsyncError(async (req, res, next) => {
   }
 
   const token = authHeader.split("=")[1];
-  if (!token)
-    return next(new ErrorHandler("Token expired", StatusCodes.UNAUTHORIZED));
+  if (!token || token == "")
+    return next(new ErrorHandler("Invalid token", StatusCodes.UNAUTHORIZED));
 
-  const decode = jwt.verify(token, "mf48752kdhejjhksu398");
+  const decode = jwt.verify(token, "ifhefceuied83833");
   if (!decode) {
-    return next(new ErrorHandler("Token expired", StatusCodes.NOT_FOUND));
+    return next(
+      new ErrorHandler("Token expired ot Invalid", StatusCodes.NOT_FOUND)
+    );
   }
-  const user = await ownerModel.findOne({ _id: decode.userId });
+  const user = await ownerModel.findOne({
+    _id: decode.userId,
+    role: decode.role,
+  });
 
   if (!user) {
-    return next(new ErrorHandler("Token expired", StatusCodes.NOT_FOUND));
+    return next(
+      new ErrorHandler("Token expired or Invalid", StatusCodes.NOT_FOUND)
+    );
   }
   next();
 });
@@ -69,12 +76,16 @@ export const hotelOwnerLogin = catchAsyncError(async (req, res) => {
         new ErrorHandler(" Incorrect Password", StatusCodes.NOT_FOUND)
       );
     }
-    const token = jwt.sign({ userId: user.id }, "mf48752kdhejjhksu398", {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      { userId: user.id, role: hotel - owner.role },
+      "ifhefceuied83833",
+      {
+        expiresIn: "7d",
+      }
+    );
     res
       .status(StatusCodes.OK)
-      .cookie("Cookiesss", token, {
+      .cookie("t", token, {
         httpOnly: true,
         path: "/",
         secure: false,
@@ -144,4 +155,4 @@ export const deleteHotel = catchAsyncError(async (req, res) => {
   } catch (error) {
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
   }
-})
+});

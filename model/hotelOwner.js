@@ -22,6 +22,10 @@ const hotelOwnerSchema = new mongoose.Schema(
       min: 5,
       max: 25,
     },
+    role: {
+      type: String,
+      default: "hotel-owner",
+    },
   },
   { timestamps: true }
 );

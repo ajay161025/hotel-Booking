@@ -18,17 +18,24 @@ export const authentication = catchAsyncError(async (req, res, next) => {
   }
 
   const token = authHeader.split("=")[1];
-  if (!token)
-    return next(new ErrorHandler("Token expired", StatusCodes.UNAUTHORIZED));
+  if (!token || token == "")
+    return next(new ErrorHandler("Invalid token", StatusCodes.UNAUTHORIZED));
 
   const decode = jwt.verify(token, "gyghjy545tg56yuyg");
   if (!decode) {
-    return next(new ErrorHandler("Token expired", StatusCodes.NOT_FOUND));
+    return next(
+      new ErrorHandler("Token expired or Invalid", StatusCodes.NOT_FOUND)
+    );
   }
-  const user = await ownerModel.findOne({ _id: decode.userId });
+  const user = await adminModel.findOne({
+    _id: decode.userId,
+    role: decode.role,
+  });
 
   if (!user) {
-    return next(new ErrorHandler("Token expired", StatusCodes.NOT_FOUND));
+    return next(
+      new ErrorHandler("Token expired or Invalid", StatusCodes.NOT_FOUND)
+    );
   }
   next();
 });
@@ -58,11 +65,11 @@ export const adminSignin = catchAsyncError(async (req, res) => {
       return next(new ErrorHandler("User not found!", StatusCodes.NOT_FOUND));
     }
     const token = jwt
-      .sign({ userId: user.id }, "gyghjy545tg56yuyg", {
+      .sign({ userId: user.id, role: admin.role }, "gyghjy545tg56yuyg", {
         expiresIn: "7d",
       })
       .res.status(200)
-      .cookie("Cookiesss", token, {
+      .cookie("t", token, {
         httpOnly: true,
         path: "/",
         secure: false,
