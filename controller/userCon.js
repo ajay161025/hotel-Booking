@@ -8,26 +8,28 @@ import catchAsyncError from "../error/catchAsyncError.js";
 import ErrorHandler from "../error/ErrorHandler.js";
 
 // jwt
-export const authentication = async (req, res, next) => {
+export const authentication = catchAsyncError(async (req, res, next) => {
   const authHeader = req.headers.cookie;
   if (!authHeader || authHeader == null || authHeader === undefined) {
-    if (!token) return res.status(StatusCodes.UNAUTHORIZED).json({ message: "Token expired" });
+    if (!token)
+      return next(new ErrorHandler("Token expired", StatusCodes.UNAUTHORIZED));
   }
 
   const token = authHeader.split("=")[1];
-  if (!token) return res.status(StatusCodes.UNAUTHORIZED).json({ message: "Token expired" });
+  if (!token)
+    return next(new ErrorHandler("Token expired", StatusCodes.UNAUTHORIZED));
 
   const decode = jwt.verify(token, "mf48752kdhejjhksu398");
   if (!decode) {
-    return res.status(StatusCodes.NOT_FOUND).json({ message: "Token expired" });
+    return next(new ErrorHandler("Token expired", StatusCodes.NOT_FOUND));
   }
   const user = await ownerModel.findOne({ _id: decode.userId });
-  
+
   if (!user) {
-    return res.status(StatusCodes.NOT_FOUND).json({ message: "Token expired" });
+    return next(new ErrorHandler("Token expired", StatusCodes.NOT_FOUND));
   }
   next();
-};
+});
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -51,7 +53,10 @@ export const register = async (req, res) => {
     const hashedpassword = await bcrypt.hash(req.body.password, salt);
     const { username, email } = req.body;
     let user = await userModel.findOne({ email });
-    if (user) return res.status(StatusCodes.BAD_REQUEST).json({ message: "User already exists" });
+    if (user)
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ message: "User already exists" });
 
     const otp = generateOTP();
     const optExpiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -83,17 +88,24 @@ export const register = async (req, res) => {
 };
 
 // verify OTP
-export const verifyOTP = async (req, res) => {
+export const verifyOTP = catchAsyncError(async (req, res) => {
   try {
     const { email, otp } = req.body;
     const user = await userModel.findOne({ email });
 
-    if (!user) return res.status(StatusCodes.BAD_REQUEST).json({ message: "User not found" });
+    if (!user)
+      return next(new ErrorHandler("User not found", StatusCodes.BAD_REQUEST));
+
     if (user.isVerified)
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: "User already verified" });
+      return next(
+        new ErrorHandler("User already verified", StatusCodes.BAD_REQUEST)
+      );
+
     if (user.otp !== otp || user.otpExpiry < new Date()) {
       console.log(user.otp, otp);
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: "Invalid or Expired OTP" });
+      return next(
+        new ErrorHandler("Invalid or Expired OTP", StatusCodes.BAD_REQUEST)
+      );
     }
     (user.isVerified = true),
       (user.otp = undefined),
@@ -102,17 +114,20 @@ export const verifyOTP = async (req, res) => {
 
     res.json({ message: "Email verified successfully. You can login now.." });
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: "Error verifying OTP", error });
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: "Error verifying OTP", error });
   }
-};
+});
 
 // Resend OTP
-export const resendOTP = async (req, res) => {
+export const resendOTP = catchAsyncError(async (req, res) => {
   try {
     const { email } = req.body;
     const user = await userModel.findOne({ email });
 
-    if (!user) return res.status(StatusCodes.BAD_REQUEST).json({ message: "User not found" });
+    if (!user)
+      return next(new ErrorHandler("User not found", StatusCodes.BAD_REQUEST));
 
     const otp = generateOTP();
     user.otp = otp;
@@ -127,31 +142,42 @@ export const resendOTP = async (req, res) => {
     });
     res.json({ message: "OTP Resend successfully" });
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: "Error resending OTP:", error });
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: "Error resending OTP:", error });
   }
-};
+});
 
 // Login User
-export const login = async (req, res) => {
+export const login = catchAsyncError(async (req, res) => {
   try {
     const user = await userModel.findOne({ email: req.body.email });
 
-    if (!user) return res.status(StatusCodes.BAD_REQUEST).json({ message: "User not found" });
+    if (!user)
+      return next(new ErrorHandler("User not found", StatusCodes.BAD_REQUEST));
+
     const validatepassword = await bcrypt.compare(
       req.body.password,
       user.password
     );
     if (!validatepassword) {
-      return res.status(404).json({ message: "Incorrect password" });
+      return next(
+        new ErrorHandler("Incorrect password", StatusCodes.NOT_FOUND)
+      );
     }
 
     if (user.password !== validatepassword)
-      return res.status(404).json({ message: "Incorrect password" });
+      return next(
+        new ErrorHandler("Incorrect password", StatusCodes.NOT_FOUND)
+      );
 
     if (!user.isVerified) {
-      return res
-        .status(StatusCodes.BAD_REQUEST)
-        .json({ message: "Email not verified. Please verify OTP." });
+      return next(
+        new ErrorHandler(
+          "Email not verified. Please verify OTP.",
+          StatusCodes.BAD_REQUEST
+        )
+      );
     }
     const token = jwt.sign({ userId: user.id }, "mf48752kdhejjhksu398", {
       expiresIn: "7d",
@@ -162,10 +188,11 @@ export const login = async (req, res) => {
       secure: false,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    // req.session.user = { id: user._id, email: user.email, name: user.name };
+
     return res.json({ message: "Login successfully" });
   } catch (error) {
-    console.log(error);
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: "Error log in:", error });
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: "Error log in:", error });
   }
-};
+});
