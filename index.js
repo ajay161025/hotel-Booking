@@ -10,7 +10,19 @@ import hotelRouter from "./routes/hotel.js";
 import adminRouter from "./routes/admin.js";
 import { notFound } from "./middleware/notFound.js";
 import error from "./error/error.js";
+import cookieparser from "cookie-parser";
+import cors from "cors";
+
+app.use(
+  cors({
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    credentials: true,
+    origin: "*",
+  })
+);
+
 app.use(express.json());
+app.use(cookieparser());
 
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/booking", bookingRouter);

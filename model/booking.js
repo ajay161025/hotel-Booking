@@ -23,9 +23,9 @@ const bookingSchema = new mongoose.Schema(
       required: false,
     },
     roomType: {
-      type: String,
-      required: [false, "Please enter about roomtype"],
-      enum: ["single", "double-bed", "king-size"],
+      type: Array,
+      required: [true, "Please enter about roomtype"],
+      // enum: ["single", "double-bed", "king-size"],
       trim: true,
     },
     stay: [

@@ -9,6 +9,7 @@ import {
 } from "../controller/adminCon.js";
 import { updateHotel } from "../controller/hotelCon.js";
 
+// router.route("/signup").post(adminSingup)
 router.route("/signin").post(adminSignin);
 router.route("/:id/adminupdate").put(authentication, updateHotel);
 router.route("/:id/verify").put(authentication, adminVerify);

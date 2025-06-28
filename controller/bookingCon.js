@@ -5,24 +5,28 @@ import catchAsyncError from "../error/catchAsyncError.js";
 import ErrorHandler from "../error/ErrorHandler.js";
 
 //searchBar
-export const searchBar = async (req, res) => {
+export const searchBar = catchAsyncError(async (req, res, next) => {
   const { country, city } = req.query;
   const { page, limit } = req.query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
   try {
     const searchbar = await hotelModel
-      .find({ country: country, city: city })
+      .find({ country: country, city: city, isVerified: "verified" })
       .skip(skip)
       .limit(parseInt(limit));
-
+    if (!searchbar) {
+      return next(
+        new ErrorHandler("Something went wrong", StatusCodes.NOT_FOUND)
+      );
+    }
     res.status(StatusCodes.OK).json(searchbar);
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+    return next(new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR));
   }
-};
+});
 
 //view hotel using name
-export const Hotel = async (req, res) => {
+export const Hotel = catchAsyncError(async (req, res, next) => {
   const { name } = req.query;
   try {
     const hotel = await hotelModel.findOne({ name, isVerified: "verified" });
@@ -31,9 +35,9 @@ export const Hotel = async (req, res) => {
     }
     res.status(StatusCodes.OK).json(hotel);
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+    return next(new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR));
   }
-};
+});
 
 //view all hotels
 // export const Hotels = async (req, res) => {
@@ -48,7 +52,7 @@ export const Hotel = async (req, res) => {
 // };
 
 //booking
-export const Booking = async (req, res) => {
+export const Booking = catchAsyncError(async (req, res, next) => {
   try {
     const {
       roomType,
@@ -59,7 +63,7 @@ export const Booking = async (req, res) => {
       stay,
     } = req.body;
     const hotel = await hotelModel.findById(req.params.id);
-    if (!hotel)
+    if (!hotel )
       return next(new ErrorHandler("Hotel not found", StatusCodes.NOT_FOUND));
 
     const checkInformated = new Date(checkInDate);
@@ -74,12 +78,15 @@ export const Booking = async (req, res) => {
       checkOutDate: checkOutformated,
       date: new Date(),
     });
-
+const personCount = await bookingModel.create({stay})
+if(personCount == "single" || personCount == "king-size" || personCount == "double-bed" ){
+  return next(new ErrorHandler("Please provide room "))
+}
     // const { ...other } = booking._doc;
     res
-      .status(StatusCodes.OK, other)
+      .status(StatusCodes.OK)
       .json({ message: "hotel booked successfully", booking, hotel });
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+    return next(new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR));
   }
-};
+});

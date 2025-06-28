@@ -11,17 +11,11 @@ import ErrorHandler from "../error/ErrorHandler.js";
 
 //jwt
 export const authentication = catchAsyncError(async (req, res, next) => {
-  const authHeader = req.headers.cookie;
-  if (!authHeader || authHeader == null || authHeader === undefined) {
-    if (!token)
-      return next(new ErrorHandler("Token expired", StatusCodes.UNAUTHORIZED));
-  }
-
-  const token = authHeader.split("=")[1];
+  const token = req.cookies.HBAcookies;
   if (!token || token == "")
     return next(new ErrorHandler("Invalid token", StatusCodes.UNAUTHORIZED));
 
-  const decode = jwt.verify(token, "gyghjy545tg56yuyg");
+  const decode = jwt.verify(token, process.env.ADMIN_JWT_KEY);
   if (!decode) {
     return next(
       new ErrorHandler("Token expired or Invalid", StatusCodes.NOT_FOUND)
@@ -37,10 +31,11 @@ export const authentication = catchAsyncError(async (req, res, next) => {
       new ErrorHandler("Token expired or Invalid", StatusCodes.NOT_FOUND)
     );
   }
+  req.UserId = user.id;
   next();
 });
 //signup
-export const adminSingup = async (req, res) => {
+export const adminSingup = catchAsyncError(async (req, res, next) => {
   try {
     const salt = await bcrypt.genSalt(12);
     const hashedpassword = await bcrypt.hash(req.body.password, salt);
@@ -53,36 +48,40 @@ export const adminSingup = async (req, res) => {
     await admin.save();
     res.status(StatusCodes.OK).json({ message: "Signup successfully" });
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+    return next(new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR));
   }
-};
+});
 
 // signin
-export const adminSignin = catchAsyncError(async (req, res) => {
+export const adminSignin = catchAsyncError(async (req, res, next) => {
   try {
-    const user = await adminModel.findOne({ admin: req.body.user });
+    const user = await adminModel.findOne({ admin: req.body.user , password:req.body.password });
     if (!user) {
       return next(new ErrorHandler("User not found!", StatusCodes.NOT_FOUND));
     }
-    const token = jwt
-      .sign({ userId: user.id, role: admin.role }, "gyghjy545tg56yuyg", {
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.ADMIN_JWT_KEY,
+      {
         expiresIn: "7d",
-      })
-      .res.status(200)
-      .cookie("t", token, {
-        httpOnly: true,
-        path: "/",
-        secure: false,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
+      }
+    );
+
+    res.status(StatusCodes.OK).cookie("HBAcookies", token, {
+      httpOnly: true,
+      path: "/",
+      secure: false,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
     res.status(StatusCodes.OK).json({ message: "Signup " });
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+    console.log(error);
+    return next(new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR));
   }
 });
 
 //admin update hotel
-export const updateHotel = async (req, res) => {
+export const updateHotel = catchAsyncError(async (req, res, next) => {
   const { name, description, address, city, country, starRatings } = req.body;
   try {
     const updatehotel = await hotelModel.findByIdAndUpdate(req.params.id, {
@@ -94,32 +93,28 @@ export const updateHotel = async (req, res) => {
       starRatings,
     });
     if (!updatehotel) {
-      return res
-        .status(StatusCodes.NOT_FOUND)
-        .json({ message: "Hotel not found" });
+      return next(new ErrorHandler("Hotel not found", StatusCodes.NOT_FOUND));
     }
     res.status(StatusCodes.OK).json({ message: "Updated by admin" });
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+    return next(new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR));
   }
-};
+});
 
 //admin delete hotel
-export const deleteHotel = async (req, res) => {
+export const deleteHotel = catchAsyncError(async (req, res, next) => {
   try {
     const deletehotel = await hotelModel.findByIdAndDelete(req.params.id);
     if (!deleteHotel) {
-      return res
-        .status(StatusCodes.NOT_FOUND)
-        .json({ message: "Hotel not found" });
+      return next(new ErrorHandler("Hotel not found", StatusCodes.NOT_FOUND));
     }
     res
       .status(StatusCodes.OK)
       .json({ message: "Deleted by admin", deletehotel });
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+    return next(new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR));
   }
-};
+});
 
 //admin create hotels - p
 // export const createHotel = async (req, res) => {
@@ -136,24 +131,24 @@ export const deleteHotel = async (req, res) => {
 // };
 
 //not-verified hotels
-export const notVerified = catchAsyncError(async (req, res) => {
+export const notVerified = catchAsyncError(async (req, res, next) => {
   try {
     const notverified = await hotelModel.find({
       isVerified: "not-verified",
     });
     if (!notverified) {
       return next(
-        new ErrorHandler("already verified hotel", StatusCodes.NOT_FOUND)
+        new ErrorHandler("Already verified hotel", StatusCodes.NOT_FOUND)
       );
     }
     res.status(StatusCodes.OK).json(notverified);
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+    return next(new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR));
   }
 });
 
 //admin verification
-export const adminVerify = async (req, res) => {
+export const adminVerify = catchAsyncError(async (req, res, next) => {
   try {
     const verify = await hotelModel.findByIdAndUpdate(
       req.params.id,
@@ -164,6 +159,6 @@ export const adminVerify = async (req, res) => {
     );
     res.status(StatusCodes.OK).json(verify);
   } catch (error) {
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+    return next(new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR));
   }
-};
+});

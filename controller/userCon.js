@@ -6,32 +6,38 @@ import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 import catchAsyncError from "../error/catchAsyncError.js";
 import ErrorHandler from "../error/ErrorHandler.js";
+import dotenv from "dotenv";
+dotenv.config("../.env");
 
 // jwt
 export const authentication = catchAsyncError(async (req, res, next) => {
-  const authHeader = req.headers.cookie;
-  if (!authHeader || authHeader == null || authHeader === undefined) {
-    if (!token)
-      return next(new ErrorHandler("Token expired", StatusCodes.UNAUTHORIZED));
-  }
-
-  const token = authHeader.split("=")[1];
+  const token = req.cookies.HBUcookies;
   if (!token || token == "")
     return next(new ErrorHandler("Ivalid token", StatusCodes.UNAUTHORIZED));
 
-  const decode = jwt.verify(token, "mf48752kdhejjhksu398");
+  const decode = jwt.verify(token, process.env.USER_JWT_KEY);
   if (!decode) {
     return next(
       new ErrorHandler("Token expired or Invalid", StatusCodes.NOT_FOUND)
     );
   }
-  const user = await userModel.findOne({ _id: decode.userId,role:decode.role });
+  const user = await userModel.findOne({
+    _id: decode.userId,
+    role: decode.role,
+  });
 
   if (!user) {
-    return next(new ErrorHandler("Token expired or Invalid", StatusCodes.NOT_FOUND));
+    return next(
+      new ErrorHandler("Token expired or Invalid", StatusCodes.NOT_FOUND)
+    );
   }
+  req.hotelUser=user.id;
   next();
 });
+
+// otp mail and pass -env
+const gmail = process.env.OTP_GMAIL;
+const password = process.env.G_PASS;
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -39,26 +45,27 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   auth: {
-    user: "ajay161002@gmail.com",
-    pass: "xlkoalncssnxrziz",
+    user: gmail,
+    pass: password,
   },
 });
 
+//generate OTP
 const generateOTP = () => {
   return crypto.randomInt(100000, 999999).toString();
 };
 
 //user register
-export const register = async (req, res) => {
+export const register = catchAsyncError(async (req, res, next) => {
   try {
     const salt = await bcrypt.genSalt(12);
     const hashedpassword = await bcrypt.hash(req.body.password, salt);
     const { username, email } = req.body;
     let user = await userModel.findOne({ email });
     if (user)
-      return res
-        .status(StatusCodes.BAD_REQUEST)
-        .json({ message: "User already exists" });
+      return next(
+        new ErrorHandler("User already exists", StatusCodes.BAD_REQUEST)
+      );
 
     const otp = generateOTP();
     const optExpiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -72,25 +79,33 @@ export const register = async (req, res) => {
       otp,
     });
     await user.save();
+    // console.log("--------------------",gmail, password);
 
     await transporter.sendMail({
-      from: "ajay161002@gmail.com",
+      from: gmail,
       to: email,
       subject: "OTP Verification",
       text: `your OTP is: ${otp}`,
     });
     res
       .status(StatusCodes.OK)
-      .json({ message: "User register. Please verify OTP sent to email." });
+      .json({ message: "User register. Please verify OTP sent to email" });
   } catch (error) {
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Error registering user ", error: error.stack });
+    console.log(error);
+    return next(
+      new ErrorHandler(
+        "Error registering user ",
+        StatusCodes.INTERNAL_SERVER_ERROR
+      )
+    );
+    // res
+    //   .status(StatusCodes.INTERNAL_SERVER_ERROR)
+    //   .json({ message: "Error registering user ", error: error.stack });
   }
-};
+});
 
 // verify OTP
-export const verifyOTP = catchAsyncError(async (req, res) => {
+export const verifyOTP = catchAsyncError(async (req, res, next) => {
   try {
     const { email, otp } = req.body;
     const user = await userModel.findOne({ email });
@@ -116,14 +131,14 @@ export const verifyOTP = catchAsyncError(async (req, res) => {
 
     res.json({ message: "Email verified successfully. You can login now.." });
   } catch (error) {
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Error verifying OTP", error });
+    return next(
+      new ErrorHandler("Error verifying OTP", StatusCodes.INTERNAL_SERVER_ERROR)
+    );
   }
 });
 
 // Resend OTP
-export const resendOTP = catchAsyncError(async (req, res) => {
+export const resendOTP = catchAsyncError(async (req, res, next) => {
   try {
     const { email } = req.body;
     const user = await userModel.findOne({ email });
@@ -137,21 +152,21 @@ export const resendOTP = catchAsyncError(async (req, res) => {
     await user.save();
 
     await transporter.sendMail({
-      from: "ajay161002@gmail.com",
+      from: process.env.OTP_GMAIL,
       to: email,
       subject: "Resend OTP verified",
       text: `your new OTP is: ${otp}`,
     });
     res.json({ message: "OTP Resend successfully" });
   } catch (error) {
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Error resending OTP:", error });
+    return next(
+      new ErrorHandler("Error resending OTP", StatusCodes.INTERNAL_SERVER_ERROR)
+    );
   }
 });
 
 // Login User
-export const login = catchAsyncError(async (req, res) => {
+export const login = catchAsyncError(async (req, res, next) => {
   try {
     const user = await userModel.findOne({ email: req.body.email });
 
@@ -168,10 +183,11 @@ export const login = catchAsyncError(async (req, res) => {
       );
     }
 
-    if (user.password !== validatepassword)
+    if (!user.password) {
       return next(
         new ErrorHandler("Incorrect password", StatusCodes.NOT_FOUND)
       );
+    }
 
     if (!user.isVerified) {
       return next(
@@ -181,10 +197,14 @@ export const login = catchAsyncError(async (req, res) => {
         )
       );
     }
-    const token = jwt.sign({ userId: user.id,role:user.role }, "mf48752kdhejjhksu398", {
-      expiresIn: "7d",
-    });
-    res.status(StatusCodes.OK).cookie("t", token, {
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.USER_JWT_KEY,
+      {
+        expiresIn: "7d",
+      }
+    );
+    res.status(StatusCodes.OK).cookie("HBUcookies", token, {
       httpOnly: true,
       path: "/",
       secure: false,
@@ -193,8 +213,8 @@ export const login = catchAsyncError(async (req, res) => {
 
     return res.json({ message: "Login successfully" });
   } catch (error) {
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Error log in:", error });
+    return next(
+      new ErrorHandler("Error log in", StatusCodes.INTERNAL_SERVER_ERROR)
+    );
   }
 });

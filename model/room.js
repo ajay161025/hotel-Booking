@@ -3,19 +3,20 @@ import mongoose from "mongoose";
 const roomSchema = new mongoose.Schema(
   {
     hotel: {
-      type: String,
+      type: mongoose.Types.ObjectId,
       ref: "hotel",
-      required: [false, "Please enter hotel name"],
-      trim: true,
+      required: true,
+     
     },
     numberOfRooms: {
       type: Number,
+      maxLength:10,
       required: [true, "Please enter hotel rooms"],
     },
     roomType: {
-      type: String,
+      type: Array,
       required: [false, "Please enter about roomtype"],
-      enum: ["single", "double-bed", "king-size"],
+      // enum: ["single", "double-bed", "king-size"],
       trim: true,
     },
     availableInRoom: [

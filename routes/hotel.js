@@ -8,6 +8,7 @@ import {
   createHotel,
   deleteHotel,
   updateHotel,
+  cLogout
 } from "../controller/hotelCon.js";
 
 router.route("/hotelregister").post(hotelOwnerRegister);
@@ -18,4 +19,6 @@ router
   .delete(authentication, deleteHotel)
   .put(authentication, updateHotel);
 
+
+  router.route("/clogout").post(cLogout);
 export default router;
