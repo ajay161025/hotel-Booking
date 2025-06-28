@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 import catchAsyncError from "../error/catchAsyncError.js";
 import ErrorHandler from "../error/ErrorHandler.js";
+import { hotelOwnerCreateSchema } from "../validation/joi.js";
 
 //jwt
 export const authentication = catchAsyncError(async (req, res, next) => {
@@ -91,6 +92,17 @@ export const hotelOwnerLogin = catchAsyncError(async (req, res, next) => {
 
 // create hotels and rooms
 export const createHotel = catchAsyncError(async (req, res, next) => {
+  const { error } = hotelOwnerCreateSchema.validate(req.body, {
+    abortEarly: false,
+  });
+  // const errs = 
+  // console.log(error);
+  if (error) {
+    return next(
+      new ErrorHandler(error.details[0].message, StatusCodes.BAD_REQUEST)
+    );
+  }
+
   const {
     roomType,
     name,

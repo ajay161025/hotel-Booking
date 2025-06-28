@@ -7,6 +7,7 @@ import { StatusCodes } from "http-status-codes";
 import catchAsyncError from "../error/catchAsyncError.js";
 import ErrorHandler from "../error/ErrorHandler.js";
 import dotenv from "dotenv";
+import { userCreateSchema } from "../validation/joi.js";
 dotenv.config("../.env");
 
 // jwt
@@ -57,6 +58,15 @@ const generateOTP = () => {
 
 //user register
 export const register = catchAsyncError(async (req, res, next) => {
+  const { error } = userCreateSchema.validate(req.body, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    return next(
+      new ErrorHandler(error.details[0].message, StatusCodes.BAD_REQUEST)
+    );
+  }
   try {
     const salt = await bcrypt.genSalt(12);
     const hashedpassword = await bcrypt.hash(req.body.password, salt);
