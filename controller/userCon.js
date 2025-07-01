@@ -7,7 +7,7 @@ import { StatusCodes } from "http-status-codes";
 import catchAsyncError from "../error/catchAsyncError.js";
 import ErrorHandler from "../error/ErrorHandler.js";
 import dotenv from "dotenv";
-import { userCreateSchema } from "../validation/joi.js";
+import { userCreateSchema, userLoginSchema } from "../validation/userJoi.js";
 dotenv.config("../.env");
 
 // jwt
@@ -32,7 +32,7 @@ export const authentication = catchAsyncError(async (req, res, next) => {
       new ErrorHandler("Token expired or Invalid", StatusCodes.NOT_FOUND)
     );
   }
-  req.hotelUser=user.id;
+  req.hotelUser = user.id;
   next();
 });
 
@@ -177,6 +177,15 @@ export const resendOTP = catchAsyncError(async (req, res, next) => {
 
 // Login User
 export const login = catchAsyncError(async (req, res, next) => {
+  const { error } = userLoginSchema.validate(req.body, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    return next(
+      new ErrorHandler(error.details[0].message, StatusCodes.BAD_REQUEST)
+    );
+  }
   try {
     const user = await userModel.findOne({ email: req.body.email });
 

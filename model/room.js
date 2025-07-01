@@ -6,16 +6,16 @@ const roomSchema = new mongoose.Schema(
       type: mongoose.Types.ObjectId,
       ref: "hotel",
       required: true,
-     
     },
     numberOfRooms: {
       type: Number,
-      maxLength:10,
-      required: [true, "Please enter hotel rooms"],
+      min:10,
+      max: 50,
+      // required: [true, "Enter hotel rooms"],
     },
     roomType: {
       type: Array,
-      required: [false, "Please enter about roomtype"],
+
       // enum: ["single", "double-bed", "king-size"],
       trim: true,
     },

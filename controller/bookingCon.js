@@ -3,6 +3,9 @@ import hotelModel from "../model/hotel.js";
 import { StatusCodes } from "http-status-codes";
 import catchAsyncError from "../error/catchAsyncError.js";
 import ErrorHandler from "../error/ErrorHandler.js";
+import { bookingCreateSchema } from "../validation/userJoi.js";
+import userModel from "../model/user.js";
+import roomModel from "../model/room.js";
 
 //searchBar
 export const searchBar = catchAsyncError(async (req, res, next) => {
@@ -53,6 +56,14 @@ export const Hotel = catchAsyncError(async (req, res, next) => {
 
 //booking
 export const Booking = catchAsyncError(async (req, res, next) => {
+  const { error } = bookingCreateSchema.validate(req.body, {
+    abortEarly: true,
+    convert: true,
+  });
+
+  if (error) {
+    return next(new ErrorHandler(error, StatusCodes.BAD_REQUEST));
+  }
   try {
     const {
       roomType,
@@ -61,28 +72,36 @@ export const Booking = catchAsyncError(async (req, res, next) => {
       checkInDate,
       checkOutDate,
       stay,
+      name,
+      user,
     } = req.body;
     const hotel = await hotelModel.findById(req.params.id);
-    if (!hotel )
+    if (!hotel) {
       return next(new ErrorHandler("Hotel not found", StatusCodes.NOT_FOUND));
-
+    }
     const checkInformated = new Date(checkInDate);
     const checkOutformated = new Date(checkOutDate);
 
+    const room = await roomModel.findOne({hotel:name.id})
+
+
+const existbooking = await bookingModel.findOne({hotel:name.id,checkInDate:checkInformated})
+if(existbooking){
+  return next(new ErrorHandler("", StatusCodes.NOT_FOUND));
+}
     const booking = await bookingModel.create({
-      roomType,
-      numberOfGuests,
-      numberOfRooms: selectRooms,
-      stay,
+      hotel: name.id,
+      roomType: roomType,
+      numberOfGuests: parseInt(numberOfGuests),
+      selectRooms: selectRooms,
+      stay: stay,
       checkInDate: checkInformated,
       checkOutDate: checkOutformated,
       date: new Date(),
-    });
-const personCount = await bookingModel.create({stay})
-if(personCount == "single" || personCount == "king-size" || personCount == "double-bed" ){
-  return next(new ErrorHandler("Please provide room "))
-}
-    // const { ...other } = booking._doc;
+    }); 
+
+    room.numberOfRooms= room.numberOfRooms -1
+    await room.save()
     res
       .status(StatusCodes.OK)
       .json({ message: "hotel booked successfully", booking, hotel });

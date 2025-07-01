@@ -8,6 +8,7 @@ import { verify } from "crypto";
 import { StatusCodes } from "http-status-codes";
 import catchAsyncError from "../error/catchAsyncError.js";
 import ErrorHandler from "../error/ErrorHandler.js";
+import { adminUpdateSchema } from "../validation/adminJoi.js";
 
 //jwt
 export const authentication = catchAsyncError(async (req, res, next) => {
@@ -55,7 +56,10 @@ export const adminSingup = catchAsyncError(async (req, res, next) => {
 // signin
 export const adminSignin = catchAsyncError(async (req, res, next) => {
   try {
-    const user = await adminModel.findOne({ admin: req.body.user , password:req.body.password });
+    const user = await adminModel.findOne({
+      admin: req.body.user,
+      password: req.body.password,
+    });
     if (!user) {
       return next(new ErrorHandler("User not found!", StatusCodes.NOT_FOUND));
     }
@@ -82,6 +86,10 @@ export const adminSignin = catchAsyncError(async (req, res, next) => {
 
 //admin update hotel
 export const updateHotel = catchAsyncError(async (req, res, next) => {
+  const { error } = adminUpdateSchema.validate(req.body, { abortEarly: true });
+  if (error) {
+    return next(new ErrorHandler(error, StatusCodes.BAD_REQUEST));
+  }
   const { name, description, address, city, country, starRatings } = req.body;
   try {
     const updatehotel = await hotelModel.findByIdAndUpdate(req.params.id, {

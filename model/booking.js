@@ -4,12 +4,10 @@ const bookingSchema = new mongoose.Schema(
   {
     numberOfGuests: {
       type: Number,
-      required: true,
     },
     hotel: {
-      type: String,
-      ref: "hotel",
-      required: false,
+      type: mongoose.Types.ObjectId,
+      ref: "hotels",
     },
     date: {
       type: Date,
@@ -22,9 +20,13 @@ const bookingSchema = new mongoose.Schema(
       type: Date,
       required: false,
     },
+    selectRooms: {
+      type: Number,
+      required: false,
+    },
     roomType: {
       type: Array,
-      required: [true, "Please enter about roomtype"],
+
       // enum: ["single", "double-bed", "king-size"],
       trim: true,
     },

@@ -6,7 +6,12 @@ import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 import catchAsyncError from "../error/catchAsyncError.js";
 import ErrorHandler from "../error/ErrorHandler.js";
-import { hotelOwnerCreateSchema } from "../validation/joi.js";
+import {
+  hotelOwnerCreateSchema,
+  hotelRegisterSchema,
+  hotelLoginSchema,
+  hotelUpdateSchema,
+} from "../validation/hotel_joi.js";
 
 //jwt
 export const authentication = catchAsyncError(async (req, res, next) => {
@@ -36,6 +41,12 @@ export const authentication = catchAsyncError(async (req, res, next) => {
 
 //hotelOwnerRegister
 export const hotelOwnerRegister = async (req, res, next) => {
+  const { error } = hotelRegisterSchema.validate(req.body, {
+    abortEarly: true,
+  });
+  if (error) {
+    return next(new ErrorHandler(error, StatusCodes.BAD_REQUEST));
+  }
   try {
     const salt = await bcrypt.genSalt(12);
     const hashedpassword = await bcrypt.hash(req.body.password, salt);
@@ -53,6 +64,10 @@ export const hotelOwnerRegister = async (req, res, next) => {
 
 //hotelOwnrLogin
 export const hotelOwnerLogin = catchAsyncError(async (req, res, next) => {
+  const { error } = hotelLoginSchema.validate(req.body, { abortEarly: true });
+  if (error) {
+    return next(new ErrorHandler(error, StatusCodes.BAD_REQUEST));
+  }
   try {
     const user = await ownerModel.findOne({
       email: req.body.email,
@@ -95,8 +110,7 @@ export const createHotel = catchAsyncError(async (req, res, next) => {
   const { error } = hotelOwnerCreateSchema.validate(req.body, {
     abortEarly: false,
   });
-  // const errs = 
-  // console.log(error);
+
   if (error) {
     return next(
       new ErrorHandler(error.details[0].message, StatusCodes.BAD_REQUEST)
@@ -165,10 +179,7 @@ export const createHotel = catchAsyncError(async (req, res, next) => {
     });
 
     const hotelroom = await roomModel.create({
-      hotel: createhotel.id,
-      ...req.body,
-    });
-
+      hotel: createhotel.id,...req.body });
     res.status(StatusCodes.OK).json({ message: "Hotel added", hotelroom });
   } catch (error) {
     return next(new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR));
@@ -177,6 +188,10 @@ export const createHotel = catchAsyncError(async (req, res, next) => {
 
 //update hotels
 export const updateHotel = catchAsyncError(async (req, res, next) => {
+  const { error } = hotelUpdateSchema.validate(req.body, { abortEarly: true , convert:fas });
+  if (error) {
+    return next(new ErrorHandler(error, StatusCodes.BAD_REQUEST));
+  } 
   const {
     name,
     description,
@@ -189,23 +204,25 @@ export const updateHotel = catchAsyncError(async (req, res, next) => {
     roomType,
   } = req.body;
   try {
+
     const updatehotel = await hotelModel.findByIdAndUpdate(req.params.id, {
-      name,
-      description,
-      address,
-      city,
-      country,
-      starRatings,
-      price,
-      availableInRoom,
-      roomType,
+      name: name,
+      description: description,
+      address: address,
+      city: city,
+      country: country,
+      starRatings: starRatings,
+      price: price,
+      availableInRoom: availableInRoom,
+      roomType: roomType,
     });
     if (!updatehotel) {
       return next(new ErrorHandler("Hotel not found", StatusCodes.NOT_FOUND));
     }
     res.status(StatusCodes.OK).json({ message: "updated" });
   } catch (error) {
-    throw new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR);
+    console.log(error);
+    return next(new ErrorHandler(error, StatusCodes.INTERNAL_SERVER_ERROR));
   }
 });
 
